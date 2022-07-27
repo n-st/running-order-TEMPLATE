@@ -1,0 +1,70 @@
+name: Generate Running Order and upload to GitHub pages
+
+env:
+  GENERATOR_REPO: n-st/running-order-layout-plain
+
+concurrency:
+  # only run one generator instance at a time to prevent git-push race conditions
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+on:
+  # only trigger on changes to the default branch (we will be modifying other
+  # branches from the generator script, and need to avoid retriggering
+  # ourselves through our own change)
+  push:
+    branches: [ "main", "master" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out generator repo
+        uses: actions/checkout@v3
+        with:
+          repository: $GENERATOR_REPO
+          path: running-order-layout-tool
+
+      - name: Check out data repo (main branch)
+        uses: actions/checkout@v3
+        with:
+          path: input
+
+      - name: Check out data repo (Pages output branch)
+        uses: actions/checkout@v3
+        with:
+          ref: gh-pages
+          path: output
+
+      - name: Get data timestamp and commit
+        working-directory: ./input
+        run: |
+          printf 'data_commit=%s\n' "$(git describe --always --dirty='*')" >> $GITHUB_ENV
+          printf 'data_changed=%s\n' "$(git log -n 1 --format='%ad' --date=format:'%F %T')" >> $GITHUB_ENV
+          printf 'data_now=%s\n' "$(date +'%F %T')" >> $GITHUB_ENV
+
+      - name: Update page HTML
+        run: |
+          printf '<html><head><title>Test</title></head><body>This page was built at %s based on commit %s from %s. Enjoy!</body>\n' \
+            "$data_now" \
+            "$data_commit" \
+            "$data_changed" \
+            > output/index.html
+
+      - name: Commit changes
+        working-directory: ./output
+        run: |
+          git config --local user.email "${{ github.repository_owner }}+running-order-generator@users.noreply.github.com"
+          git config --local user.name "Running Order Generator ($GENERATOR_REPO)"
+          git add -A
+          git commit -m "Generated from commit $data_commit (repo ${{ github.repository }})"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          directory: output
+          branch: gh-pages
