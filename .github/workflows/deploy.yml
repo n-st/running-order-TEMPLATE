@@ -42,9 +42,11 @@ jobs:
       - name: Get data timestamp and commit
         working-directory: ./input
         run: |
+          timezone_offset="$(git log -n 1 --format='%ad' --date=format:'%z' | sed 's/\([+-]\)0/\1/')"
+          etc_timezone="$(printf 'Etc/GMT%+d' $(( -1 * timezone_offset / 100 )) )"
           printf 'data_commit=%s\n' "$(git describe --always --dirty='*')" >> $GITHUB_ENV
           printf 'data_changed=%s\n' "$(git log -n 1 --format='%ad' --date=format:'%F %T')" >> $GITHUB_ENV
-          printf 'data_now=%s\n' "$(date +'%F %T')" >> $GITHUB_ENV
+          printf 'data_now=%s\n' "$(env TZ="$etc_timezone" date +'%F %T')" >> $GITHUB_ENV
 
       - name: Update page HTML
         run: |
