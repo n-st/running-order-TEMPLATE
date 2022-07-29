@@ -48,13 +48,14 @@ jobs:
           printf 'data_changed=%s\n' "$(git log -n 1 --format='%ad' --date=format:'%F %T')" >> $GITHUB_ENV
           printf 'data_now=%s\n' "$(env TZ="$etc_timezone" date +'%F %T')" >> $GITHUB_ENV
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
       - name: Update page HTML
         run: |
-          printf '<html><head><title>Test</title></head><body>This page was built at %s based on commit %s from %s. Enjoy!</body>\n' \
-            "$data_now" \
-            "$data_commit" \
-            "$data_changed" \
-            > output/index.html
+          python3 running-order-layout-tool/generate.py --metainfo="Generated at $data_now; data from $data_changed ($data_commit)" < input/running-order.csv > output/index.html
 
       - name: Commit changes
         working-directory: ./output
