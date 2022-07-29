@@ -53,6 +53,11 @@ jobs:
         with:
           python-version: '3.x'
 
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r running-order-layout-tool/requirements.txt
+
       - name: Update page HTML
         run: |
           python3 running-order-layout-tool/generate.py --metainfo="Generated at $data_now; data from $data_changed ($data_commit)" < input/running-order.csv > output/index.html
